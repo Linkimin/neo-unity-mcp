@@ -1,0 +1,4 @@
+﻿<Solution>
+  <Project Path="Funplay.Editor.csproj" />
+  <Project Path="Neo.UnityMcp.Editor.csproj" />
+</Solution>

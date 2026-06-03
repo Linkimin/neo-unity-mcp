@@ -1,0 +1,29 @@
+# Unity (dev-project host)
+dev-project/[Ll]ibrary/
+dev-project/[Tt]emp/
+dev-project/[Oo]bj/
+dev-project/[Ll]ogs/
+dev-project/[Mm]emoryCaptures/
+dev-project/[Uu]serSettings/
+dev-project/*.csproj
+dev-project/*.sln
+dev-project/*.csproj.user
+
+# NuGetForUnity downloads (vendored set lives in the package instead)
+dev-project/Assets/Packages/
+
+# Temporary bootstrap MCP driver (patched Funplay) — drives the editor while Neo is built; NOT part of Neo
+dev-project/Packages/com.gamebooom.unity.mcp/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vs/
+
+# Tool-managed artifacts from the temporary Funplay bootstrap (per-machine, not Neo)
+dev-project/.funplay/
+dev-project/.codex/
+dev-project/.claude/
+dev-project/CLAUDE.md
+dev-project/AGENTS.md

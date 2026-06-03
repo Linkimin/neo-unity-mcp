@@ -1,0 +1,10 @@
+{
+  "name": "com.neo.unity-mcp",
+  "version": "0.0.1",
+  "displayName": "Neo Unity MCP",
+  "description": "Production-grade Unity MCP server (hybrid fork of Funplay). Roslyn execution core.",
+  "unity": "6000.0",
+  "dependencies": {
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
+  }
+}
