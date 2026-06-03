@@ -20,6 +20,7 @@ dev-project/Packages/com.gamebooom.unity.mcp/
 Thumbs.db
 .idea/
 .vs/
+.worktrees/
 
 # Tool-managed artifacts from the temporary Funplay bootstrap (per-machine, not Neo)
 dev-project/.funplay/
