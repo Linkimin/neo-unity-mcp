@@ -7,7 +7,12 @@ dev-project/[Mm]emoryCaptures/
 dev-project/[Uu]serSettings/
 dev-project/*.csproj
 dev-project/*.sln
+dev-project/*.slnx
 dev-project/*.csproj.user
+
+# Local dev-only EditMode test harness (drives Unity Test Framework; not part of Neo)
+dev-project/Assets/NeoDevTools/
+dev-project/Assets/NeoDevTools.meta
 
 # NuGetForUnity downloads (vendored set lives in the package instead)
 dev-project/Assets/Packages/
