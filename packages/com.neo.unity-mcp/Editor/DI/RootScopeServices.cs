@@ -1,6 +1,7 @@
 // Adapted from Funplay MCP for Unity (MIT). See THIRD_PARTY_NOTICES.md.
 
 using System;
+using Neo.UnityMcp.Jobs;
 using Neo.UnityMcp.Services;
 using Neo.UnityMcp.Threading;
 
@@ -15,6 +16,8 @@ namespace Neo.UnityMcp.DI
         public McpServerSettings Settings { get; }
         public IEditorThreadHelper EditorThreadHelper { get; }
         public NeoMcpServerService Server { get; }
+        public JobStore JobStore { get; }
+        public JobManager JobManager { get; }
 
         private RootScopeServices()
         {
@@ -22,6 +25,8 @@ namespace Neo.UnityMcp.DI
             Settings = new McpServerSettings();
             EditorThreadHelper = new EditorThreadHelper();
             Server = new NeoMcpServerService(Settings, EditorThreadHelper);
+            JobStore = new JobStore();
+            JobManager = new JobManager(JobStore);
         }
 
         public object GetService(Type type)
@@ -32,6 +37,10 @@ namespace Neo.UnityMcp.DI
                 return EditorThreadHelper;
             if (type == typeof(NeoMcpServerService))
                 return Server;
+            if (type == typeof(JobStore))
+                return JobStore;
+            if (type == typeof(JobManager))
+                return JobManager;
 
             return null;
         }
