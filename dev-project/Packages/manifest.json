@@ -48,6 +48,9 @@
     "com.unity.ugui": "2.0.0",
     "com.unity.visualscripting": "1.9.11"
   },
+  "testables": [
+    "com.neo.unity-mcp"
+  ],
   "scopedRegistries": [
     {
       "name": "OpenUPM",
