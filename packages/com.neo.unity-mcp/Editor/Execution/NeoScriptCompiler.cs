@@ -8,6 +8,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Neo.UnityMcp.Indexing;
 
 namespace Neo.UnityMcp.Execution
 {
@@ -31,8 +32,10 @@ namespace Neo.UnityMcp.Execution
                 return CompiledScript.FromCache(cached);
 
             var tree = CSharpSyntaxTree.ParseText(code ?? string.Empty);
+            // Default + project namespaces from the metadata index (Task 5): snippets can use
+            // project types without explicit using directives, drop-in with Funplay's behaviour.
             var options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
-                .WithUsings("System", "System.Collections.Generic", "System.Linq", "UnityEngine", "UnityEditor");
+                .WithUsings(NamespaceUsingsCache.GetUsings());
 
             var compilation = CSharpCompilation.Create(
                 "NeoScript_" + key.Substring(0, 8),

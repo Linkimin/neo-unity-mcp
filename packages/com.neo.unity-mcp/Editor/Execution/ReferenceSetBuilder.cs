@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Microsoft.CodeAnalysis;
+using Neo.UnityMcp.Indexing;
 
 namespace Neo.UnityMcp.Execution
 {
@@ -22,8 +23,8 @@ namespace Neo.UnityMcp.Execution
     // nothing implicitly, so feeding it exactly the loaded set is conflict-free (the netstandard
     // facade type-forwards into mscorlib rather than re-defining types).
     //
-    // Project assemblies currently come from the loaded domain; Task 5 replaces this with
-    // AssemblyDefinitionIndex.
+    // Project assemblies come from the authoritative AssemblyDefinitionIndex (Task 5); the
+    // loaded domain supplies the BCL/Unity/package surface. Deduped by simple name.
     internal sealed class ReferenceSetBuilder
     {
         public IReadOnlyList<MetadataReference> Build()
@@ -39,6 +40,18 @@ namespace Neo.UnityMcp.Execution
         {
             var paths = new List<string>();
             var seenSimpleNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // Authoritative project assemblies from the metadata index (Task 5), added first so
+            // they are present even if not currently loaded into the AppDomain.
+            foreach (var outputPath in AssemblyDefinitionIndex.ProjectOutputPaths)
+            {
+                if (string.IsNullOrEmpty(outputPath) || !File.Exists(outputPath))
+                    continue;
+
+                var simpleName = Path.GetFileNameWithoutExtension(outputPath);
+                if (seenSimpleNames.Add(simpleName))
+                    paths.Add(outputPath);
+            }
 
             foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
