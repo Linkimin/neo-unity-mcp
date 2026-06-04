@@ -2,7 +2,9 @@
   "name": "Neo.UnityMcp.Editor",
   "rootNamespace": "Neo.UnityMcp",
   "references": [
-    "Unity.InputSystem"
+    "Unity.InputSystem",
+    "UnityEditor.TestRunner",
+    "UnityEngine.TestRunner"
   ],
   "includePlatforms": [
     "Editor"
