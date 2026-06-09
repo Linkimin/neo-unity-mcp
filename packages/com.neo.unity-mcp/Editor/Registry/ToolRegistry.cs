@@ -115,6 +115,11 @@ namespace Neo.UnityMcp.Registry
                 if (assembly.IsDynamic)
                     continue;
 
+                // Exclude test assemblies from the production tool surface.
+                var assemblyName = assembly.GetName().Name;
+                if (assemblyName != null && assemblyName.EndsWith(".Tests", StringComparison.Ordinal))
+                    continue;
+
                 try
                 {
                     types.AddRange(assembly.GetTypes().Where(type => type.GetCustomAttribute<NeoToolProviderAttribute>() != null));
