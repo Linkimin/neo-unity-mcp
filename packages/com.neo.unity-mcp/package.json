@@ -1,9 +1,20 @@
 {
   "name": "com.neo.unity-mcp",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "displayName": "Neo Unity MCP",
-  "description": "Production-grade Unity MCP server (hybrid fork of Funplay). Roslyn execution core.",
+  "description": "A robust MCP bridge for AI-assisted Unity Editor automation, scene inspection, Roslyn-based tool execution, and long-running editor workflows.",
   "unity": "6000.0",
+  "keywords": [
+    "mcp",
+    "ai",
+    "automation",
+    "roslyn",
+    "editor",
+    "testing"
+  ],
+  "author": {
+    "name": "Linkimin"
+  },
   "dependencies": {
     "com.unity.nuget.newtonsoft-json": "3.2.1"
   }

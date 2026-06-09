@@ -25,6 +25,17 @@ scans), domain-reload-aware operation, and a curated tool set instead of dozens 
 https://github.com/Linkimin/neo-unity-mcp.git?path=packages/com.neo.unity-mcp
 ```
 
+(Embedded use is also supported — drop `packages/com.neo.unity-mcp` into a project's `Packages/`.)
+
+## Requirements
+
+- **Unity 6000.0+.**
+- **Self-contained** — Roslyn and its support libraries are vendored under `Editor/Plugins/`;
+  no NuGetForUnity required.
+- **Newtonsoft JSON** (`com.unity.nuget.newtonsoft-json`) — declared dependency.
+- **Input System** — optional; input-simulation tools light up when the New Input System is
+  active, and the package still compiles on legacy-only projects.
+
 ## License
 
 MIT — see [`LICENSE`](LICENSE). Third-party components (including some editor plumbing adapted
