@@ -33,3 +33,7 @@ dev-project/.codex/
 dev-project/.claude/
 dev-project/CLAUDE.md
 dev-project/AGENTS.md
+
+# Local-only design docs — never published (stripped from history before first push)
+docs/specs/
+docs/plans/
