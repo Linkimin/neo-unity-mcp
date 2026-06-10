@@ -3,6 +3,23 @@
 All notable changes to this package are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); this package adheres to SemVer.
 
+## [0.1.1] — 2026-06-10
+
+Stabilization patch from dogfooding Neo on a real project (ArchiveDeadGod).
+
+### Fixed
+- Namespace index: project `using`s are now injected textually so `execute_code` can reference project
+  types by simple name. (`CSharpCompilationOptions.WithUsings` only takes effect for script-mode
+  compilation, so the previous global-usings approach was silently ignored.)
+- Namespace index now scopes to **project** assemblies (code under `Assets/` or Embedded/Local packages)
+  instead of every installed package — avoids flooding the default usings and ambiguous references.
+
+### Changed
+- `EditorThreadHelper` reimplemented independently of the adapted Funplay code (single work queue,
+  disposal-aware) and removed from `THIRD_PARTY_NOTICES.md`.
+- `execute_code` logs a soft warning after many unique compiles in one domain session (loaded
+  assemblies accumulate in Mono until the next domain reload; the real fix is the out-of-process broker).
+
 ## [0.1.0] — 2026-06-10
 
 First release — Neo Unity MCP v1 (walking skeleton of the bridge). A standalone, drop-in
