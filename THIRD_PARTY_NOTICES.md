@@ -13,7 +13,7 @@ or adapts third-party components listed below. Each remains under its own licens
 
 Neo Unity MCP **adapts a subset of code** from Funplay MCP for Unity — primarily editor
 plumbing: the MCP HTTP transport, JSON-RPC request/response handling, the attribute-based
-tool registry, editor main-thread marshalling, and some builtin tool implementations.
+tool registry, and some builtin tool implementations.
 The execution core (Roslyn), the job system, the namespace/symbol index, and the overall
 tool surface are new and specific to Neo Unity MCP.
 

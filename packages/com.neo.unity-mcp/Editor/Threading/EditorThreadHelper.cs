@@ -1,129 +1,102 @@
-// Adapted from Funplay MCP for Unity (MIT). See THIRD_PARTY_NOTICES.md.
+// Neo Unity MCP.
 
 using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEditor;
+using UnityEngine;
 
 namespace Neo.UnityMcp.Threading
 {
+    // Independent editor main-thread marshaller. A single queue of self-contained work items is
+    // drained on EditorApplication.update (capped per frame). Main-thread callers run synchronously;
+    // background callers get a Task that completes when the item is pumped. Each queued item is
+    // disposal-aware, so pending work is canceled (not run) on Dispose.
     internal sealed class EditorThreadHelper : IEditorThreadHelper
     {
-        private readonly ConcurrentQueue<(Action action, TaskCompletionSource<bool> tcs)> _actionQueue
-            = new ConcurrentQueue<(Action, TaskCompletionSource<bool>)>();
+        private const int MaxItemsPerFrame = 16;
 
-        private readonly ConcurrentQueue<(Func<object> func, TaskCompletionSource<object> tcs)> _funcQueue
-            = new ConcurrentQueue<(Func<object>, TaskCompletionSource<object>)>();
-
+        private readonly ConcurrentQueue<Action> _queue = new ConcurrentQueue<Action>();
         private readonly int _mainThreadId;
-        private bool _disposed;
-
-        public bool IsMainThread => Thread.CurrentThread.ManagedThreadId == _mainThreadId;
+        private volatile bool _disposed;
 
         public EditorThreadHelper()
         {
             _mainThreadId = Thread.CurrentThread.ManagedThreadId;
-            EditorApplication.update += ProcessQueues;
+            EditorApplication.update += ProcessQueue;
         }
+
+        public bool IsMainThread => Thread.CurrentThread.ManagedThreadId == _mainThreadId;
 
         public Task ExecuteOnEditorThreadAsync(Action action)
         {
-            if (_disposed)
-                return CreateCanceledTask();
+            if (action == null)
+                throw new ArgumentNullException(nameof(action));
 
-            if (IsMainThread)
+            return ExecuteOnEditorThreadAsync(() =>
             {
-                try
-                {
-                    action();
-                    return Task.CompletedTask;
-                }
-                catch (Exception ex)
-                {
-                    return Task.FromException(ex);
-                }
-            }
-
-            var tcs = new TaskCompletionSource<bool>();
-            _actionQueue.Enqueue((action, tcs));
-            return tcs.Task;
+                action();
+                return (object)null;
+            });
         }
 
         public Task<T> ExecuteOnEditorThreadAsync<T>(Func<T> func)
         {
+            if (func == null)
+                throw new ArgumentNullException(nameof(func));
             if (_disposed)
-                return CreateCanceledTask<T>();
+                return Canceled<T>();
 
             if (IsMainThread)
             {
-                try
-                {
-                    return Task.FromResult(func());
-                }
-                catch (Exception ex)
-                {
-                    return Task.FromException<T>(ex);
-                }
+                try { return Task.FromResult(func()); }
+                catch (Exception ex) { return Task.FromException<T>(ex); }
             }
 
-            var outerTcs = new TaskCompletionSource<T>();
-            var tcs = new TaskCompletionSource<object>();
-            tcs.Task.ContinueWith(
-                task =>
-                {
-                    if (task.IsCanceled)
-                        outerTcs.TrySetCanceled();
-                    else if (task.IsFaulted)
-                        outerTcs.TrySetException(task.Exception?.InnerException ?? task.Exception ?? new Exception("Unknown error"));
-                    else
-                        outerTcs.TrySetResult((T)task.Result);
-                },
-                CancellationToken.None,
-                TaskContinuationOptions.ExecuteSynchronously,
-                TaskScheduler.Default);
-
-            _funcQueue.Enqueue((() => func(), tcs));
-            return outerTcs.Task;
+            var tcs = new TaskCompletionSource<T>();
+            _queue.Enqueue(() =>
+            {
+                if (_disposed) { tcs.TrySetCanceled(); return; }
+                try { tcs.TrySetResult(func()); }
+                catch (Exception ex) { tcs.TrySetException(ex); }
+            });
+            return tcs.Task;
         }
 
         public Task<T> ExecuteAsyncOnEditorThreadAsync<T>(Func<Task<T>> asyncFunc)
         {
+            if (asyncFunc == null)
+                throw new ArgumentNullException(nameof(asyncFunc));
             if (_disposed)
-                return CreateCanceledTask<T>();
+                return Canceled<T>();
 
             if (IsMainThread)
                 return asyncFunc();
 
-            var outerTcs = new TaskCompletionSource<T>();
-            var tcs = new TaskCompletionSource<object>();
-            tcs.Task.ContinueWith(
-                task =>
-                {
-                    if (task.IsCanceled)
-                        outerTcs.TrySetCanceled();
-                    else if (task.IsFaulted)
-                        outerTcs.TrySetException(task.Exception?.InnerException ?? task.Exception ?? new Exception("Unknown error"));
-                },
-                CancellationToken.None,
-                TaskContinuationOptions.ExecuteSynchronously,
-                TaskScheduler.Default);
-
-            _funcQueue.Enqueue((() =>
+            var tcs = new TaskCompletionSource<T>();
+            _queue.Enqueue(() =>
             {
-                asyncFunc().ContinueWith(task =>
+                if (_disposed) { tcs.TrySetCanceled(); return; }
+                try
                 {
-                    if (task.IsFaulted)
-                        outerTcs.TrySetException(task.Exception?.InnerException ?? task.Exception ?? new Exception("Unknown error"));
-                    else if (task.IsCanceled)
-                        outerTcs.TrySetCanceled();
-                    else
-                        outerTcs.TrySetResult(task.Result);
-                });
-                return null;
-            }, tcs));
-
-            return outerTcs.Task;
+                    asyncFunc().ContinueWith(
+                        t =>
+                        {
+                            if (t.IsFaulted) tcs.TrySetException(t.Exception.InnerException ?? (Exception)t.Exception);
+                            else if (t.IsCanceled) tcs.TrySetCanceled();
+                            else tcs.TrySetResult(t.Result);
+                        },
+                        CancellationToken.None,
+                        TaskContinuationOptions.ExecuteSynchronously,
+                        TaskScheduler.Default);
+                }
+                catch (Exception ex)
+                {
+                    tcs.TrySetException(ex);
+                }
+            });
+            return tcs.Task;
         }
 
         public void Dispose()
@@ -132,60 +105,38 @@ namespace Neo.UnityMcp.Threading
                 return;
 
             _disposed = true;
-            EditorApplication.update -= ProcessQueues;
+            EditorApplication.update -= ProcessQueue;
 
-            while (_actionQueue.TryDequeue(out var action))
-                action.tcs.TrySetCanceled();
-            while (_funcQueue.TryDequeue(out var func))
-                func.tcs.TrySetCanceled();
+            // Drain: each item sees _disposed and cancels its own TCS instead of running.
+            while (_queue.TryDequeue(out var work))
+            {
+                try { work(); }
+                catch { }
+            }
         }
 
-        private void ProcessQueues()
+        // Drains queued work on the main thread. Subscribed to EditorApplication.update; also the
+        // deterministic test entry point.
+        internal void ProcessQueue()
         {
             if (_disposed)
                 return;
 
-            var processedCount = 0;
-            const int maxPerFrame = 10;
-
-            while (processedCount < maxPerFrame && _actionQueue.TryDequeue(out var action))
+            var processed = 0;
+            while (processed++ < MaxItemsPerFrame && _queue.TryDequeue(out var work))
             {
                 try
                 {
-                    action.action();
-                    action.tcs.TrySetResult(true);
+                    work();
                 }
                 catch (Exception ex)
                 {
-                    action.tcs.TrySetException(ex);
+                    Debug.LogError("[Neo MCP Server] Editor-thread work failed: " + ex.Message);
                 }
-
-                processedCount++;
-            }
-
-            while (processedCount < maxPerFrame && _funcQueue.TryDequeue(out var func))
-            {
-                try
-                {
-                    func.tcs.TrySetResult(func.func());
-                }
-                catch (Exception ex)
-                {
-                    func.tcs.TrySetException(ex);
-                }
-
-                processedCount++;
             }
         }
 
-        private static Task CreateCanceledTask()
-        {
-            var tcs = new TaskCompletionSource<bool>();
-            tcs.SetCanceled();
-            return tcs.Task;
-        }
-
-        private static Task<T> CreateCanceledTask<T>()
+        private static Task<T> Canceled<T>()
         {
             var tcs = new TaskCompletionSource<T>();
             tcs.SetCanceled();
