@@ -29,6 +29,18 @@ namespace Neo.UnityMcp.Tests.Execution
         }
 
         [Test]
+        public void Legacy_ResolvesProjectTypeBySimpleName_ViaInjectedUsings()
+        {
+            // 'Response' lives in Neo.UnityMcp.Registry — a project namespace from the metadata index.
+            // Resolving it by simple name (no explicit using) proves textual using-injection works
+            // (regression guard for F1: WithUsings global usings don't apply to Regular compilation).
+            var response = (Response)ScriptExecutionTool.ExecuteCode("return typeof(Response).Name;", false);
+
+            Assert.That(response.success, Is.True, Failure(response));
+            Assert.That(GetData(response, "result"), Is.EqualTo("Response"));
+        }
+
+        [Test]
         public void Command_CreatesAndTracksObject()
         {
             const string code = @"

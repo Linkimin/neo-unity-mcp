@@ -3,6 +3,7 @@
 using System;
 using System.Linq;
 using System.Reflection;
+using Neo.UnityMcp.Indexing;
 using Neo.UnityMcp.Registry;
 
 namespace Neo.UnityMcp.Execution
@@ -17,18 +18,13 @@ namespace Neo.UnityMcp.Execution
     {
         private static readonly NeoScriptCompiler Compiler = new NeoScriptCompiler(new ReferenceSetBuilder());
 
-        private const string Usings =
-            "using System;\n" +
-            "using System.Collections;\n" +
-            "using System.Collections.Generic;\n" +
-            "using System.IO;\n" +
-            "using System.Linq;\n" +
-            "using System.Text;\n" +
-            "using UnityEngine;\n" +
-            "using UnityEngine.SceneManagement;\n" +
-            "using UnityEditor;\n" +
-            "using UnityEditor.SceneManagement;\n" +
-            "using Neo.UnityMcp.Execution;\n";
+        // Usings are injected TEXTUALLY (not via CSharpCompilationOptions.WithUsings, which only
+        // applies to SourceCodeKind.Script). Source = NamespaceUsingsCache (framework defaults +
+        // project namespaces from the metadata index). Duplicate `using` -> CS0105 warning only.
+        private static string BuildUsings()
+        {
+            return string.Concat(NamespaceUsingsCache.GetUsings().Select(ns => "using " + ns + ";\n"));
+        }
 
         [NeoTool("execute_code",
             "Compile a C# snippet in memory (Roslyn, hash-cached) and run it on the editor thread. " +
@@ -46,7 +42,8 @@ namespace Neo.UnityMcp.Execution
                 return Response.Error("SAFETY_CHECK_BLOCKED",
                     new { reason, hint = "Pass safety_checks=false to bypass." });
 
-            var fullCode = code.Contains("class ") ? Usings + code : WrapCode(code);
+            var usings = BuildUsings();
+            var fullCode = code.Contains("class ") ? usings + code : WrapCode(code, usings);
 
             CompiledScript compiled;
             try
@@ -157,9 +154,9 @@ namespace Neo.UnityMcp.Execution
             return null;
         }
 
-        private static string WrapCode(string code)
+        private static string WrapCode(string code, string usings)
         {
-            return Usings +
+            return usings +
                    "public static class NeoSnippet\n" +
                    "{\n" +
                    "    public static string Run()\n" +

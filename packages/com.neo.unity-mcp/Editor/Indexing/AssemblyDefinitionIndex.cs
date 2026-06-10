@@ -4,11 +4,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor.Compilation;
+using UnityEditor.PackageManager;
 
 namespace Neo.UnityMcp.Indexing
 {
-    // Authoritative set of project (editor) assemblies via CompilationPipeline — names and
-    // compiled output paths. Replaces ad-hoc .cs scanning / "whatever happens to be loaded".
+    // Authoritative set of the PROJECT's (editor) assemblies via CompilationPipeline — names and
+    // compiled output paths. "Project" = code under Assets/ plus Embedded/Local packages; Unity
+    // Registry/BuiltIn/Git packages are excluded (CompilationPipeline returns all ~115 of them,
+    // which would flood the namespace index and risk ambiguous usings).
     // O(assemblies), cached; reset by IndexInvalidation on compile/reload/project change.
     internal static class AssemblyDefinitionIndex
     {
@@ -41,6 +44,9 @@ namespace Neo.UnityMcp.Indexing
 
             foreach (var assembly in CompilationPipeline.GetAssemblies(AssembliesType.Editor))
             {
+                if (!IsProjectAssembly(assembly))
+                    continue;
+
                 names.Add(assembly.name);
                 try
                 {
@@ -53,6 +59,30 @@ namespace Neo.UnityMcp.Indexing
 
             _names = names;
             _outputPaths = outputs;
+        }
+
+        // Project = under Assets/ (no owning package) or an Embedded/Local package.
+        // External (Registry/BuiltIn/Git) packages are not "project" code.
+        private static bool IsProjectAssembly(Assembly assembly)
+        {
+            var sources = assembly.sourceFiles;
+            if (sources == null || sources.Length == 0)
+                return false;
+
+            PackageInfo package;
+            try
+            {
+                package = PackageInfo.FindForAssetPath(sources[0]);
+            }
+            catch
+            {
+                return false;
+            }
+
+            if (package == null)
+                return true; // under Assets/
+
+            return package.source == PackageSource.Embedded || package.source == PackageSource.Local;
         }
     }
 }
