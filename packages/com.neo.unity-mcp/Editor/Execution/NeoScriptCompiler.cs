@@ -8,6 +8,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using UnityEngine;
 
 namespace Neo.UnityMcp.Execution
 {
@@ -21,11 +22,19 @@ namespace Neo.UnityMcp.Execution
     // load a *new* assembly, increasing the leak. So a size cap would backfire. The cache's job is
     // to AVOID that leak for repeated identical code. For genuinely unique snippets the per-compile
     // assembly cost is inherent to in-process compilation; the real fix is recycling an
-    // out-of-process worker (broker, roadmap v0.5), not capping this dictionary.
+    // out-of-process worker (broker, roadmap v0.5), not capping this dictionary. (A Unity domain reload
+    // tears down the scripting domain and frees these assemblies, so accumulation is bounded to the
+    // current reload window; the soft warning below makes a long reload-free codegen session observable.)
     internal sealed class NeoScriptCompiler
     {
+        private const int LoadWarnThreshold = 200;
+
         private readonly Dictionary<string, Assembly> _cache = new Dictionary<string, Assembly>(StringComparer.Ordinal);
         private readonly ReferenceSetBuilder _references;
+        private int _loadCount;
+
+        // Unique assemblies emitted this domain session (resets on domain reload). For diagnostics/tests.
+        public int UniqueCompileCount => _loadCount;
 
         public NeoScriptCompiler(ReferenceSetBuilder references)
         {
@@ -57,6 +66,14 @@ namespace Neo.UnityMcp.Execution
 
                 var assembly = Assembly.Load(ms.ToArray());
                 _cache[key] = assembly; // identical source is never recompiled / never spawns a new assembly
+                if (++_loadCount % LoadWarnThreshold == 0)
+                {
+                    Debug.LogWarning(
+                        "[Neo MCP Server] execute_code has compiled " + _loadCount + " unique snippets since the last " +
+                        "domain reload. Loaded assemblies accumulate (Mono cannot unload them individually) and are freed " +
+                        "only on the next domain reload. If editor memory grows, trigger a recompile/reload — or use the " +
+                        "out-of-process broker (roadmap v0.5).");
+                }
                 return CompiledScript.Ok(assembly);
             }
         }

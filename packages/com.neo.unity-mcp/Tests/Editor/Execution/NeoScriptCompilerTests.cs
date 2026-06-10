@@ -45,6 +45,18 @@ public static class CompilerProbe
         }
 
         [Test]
+        public void Compile_CountsUniqueAssemblies_NotCacheHits()
+        {
+            var compiler = new NeoScriptCompiler(new ReferenceSetBuilder());
+
+            compiler.Compile(GoodCode);                                              // unique -> 1
+            compiler.Compile("public static class A { public static int X() => 1; }"); // unique -> 2
+            compiler.Compile(GoodCode);                                              // cache hit -> still 2
+
+            Assert.That(compiler.UniqueCompileCount, Is.EqualTo(2));
+        }
+
+        [Test]
         public void Compile_InvalidCode_ReturnsDiagnostics()
         {
             var compiler = new NeoScriptCompiler(new ReferenceSetBuilder());
