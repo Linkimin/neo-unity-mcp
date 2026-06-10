@@ -14,6 +14,14 @@ namespace Neo.UnityMcp.Execution
     // Roslyn replacement for Funplay's CodeDom execute_code compile step.
     // Compiles a full C# compilation unit in memory; identical source returns the same
     // cached Assembly (no recompile, no assembly churn). Curated references via ReferenceSetBuilder.
+    //
+    // CACHE IS INTENTIONALLY UNBOUNDED. In Mono (Unity's editor runtime) assemblies loaded via
+    // Assembly.Load(byte[]) are NEVER unloaded (no collectible AssemblyLoadContext), so evicting a
+    // cache entry does not reclaim memory — and worse, re-running evicted code would recompile and
+    // load a *new* assembly, increasing the leak. So a size cap would backfire. The cache's job is
+    // to AVOID that leak for repeated identical code. For genuinely unique snippets the per-compile
+    // assembly cost is inherent to in-process compilation; the real fix is recycling an
+    // out-of-process worker (broker, roadmap v0.5), not capping this dictionary.
     internal sealed class NeoScriptCompiler
     {
         private readonly Dictionary<string, Assembly> _cache = new Dictionary<string, Assembly>(StringComparer.Ordinal);
